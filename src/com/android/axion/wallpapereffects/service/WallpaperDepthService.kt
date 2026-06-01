@@ -160,7 +160,9 @@ class WallpaperDepthService : Service() {
                 }
         Log.d(TAG, "Loaded wallpaper bitmap: ${bitmap.width}x${bitmap.height}")
 
-        val cropped = centerCropToDisplay(bitmap)
+        val (cropped, cropRect) = centerCropToDisplay(bitmap)
+        val srcW = bitmap.width
+        val srcH = bitmap.height
         if (cropped !== bitmap && !bitmap.isRecycled) bitmap.recycle()
         Log.d(TAG, "Cropped bitmap: ${cropped.width}x${cropped.height}")
 
@@ -182,8 +184,9 @@ class WallpaperDepthService : Service() {
                 )
                 if (pathData != null) {
                     Settings.Secure.putString(contentResolver, SETTING_DEPTH_MASK, pathData)
-                    Settings.Secure.putString(contentResolver, SETTING_DEPTH_BOUNDS, null)
-                    Log.d(TAG, "Published depth path (${pathData.length} chars)")
+                    val boundsStr = "$srcW,$srcH,${cropRect.left},${cropRect.top},${cropRect.right},${cropRect.bottom}"
+                    Settings.Secure.putString(contentResolver, SETTING_DEPTH_BOUNDS, boundsStr)
+                    Log.d(TAG, "Published depth path (${pathData.length} chars) with bounds: $boundsStr")
                 } else {
                     clearMask()
                 }
@@ -262,7 +265,7 @@ class WallpaperDepthService : Service() {
         }
     }
 
-    private fun centerCropToDisplay(bitmap: Bitmap): Bitmap {
+    private fun centerCropToDisplay(bitmap: Bitmap): Pair<Bitmap, Rect> {
 
         val wm = getSystemService(WindowManager::class.java)
         val maxBounds = wm?.maximumWindowMetrics?.bounds
@@ -279,10 +282,12 @@ class WallpaperDepthService : Service() {
                 "bitmap=${bitmap.width}x${bitmap.height}",
         )
 
-        if (dstW <= 0 || dstH <= 0) return bitmap
-
         val srcW = bitmap.width
         val srcH = bitmap.height
+        val fullRect = Rect(0, 0, srcW, srcH)
+
+        if (dstW <= 0 || dstH <= 0) return Pair(bitmap, fullRect)
+
         val srcAR = srcW.toFloat() / srcH
         val dstAR = dstW.toFloat() / dstH
 
@@ -300,7 +305,7 @@ class WallpaperDepthService : Service() {
             }
 
         if (cropRect.width() >= srcW - 2 && cropRect.height() >= srcH - 2) {
-            return bitmap
+            return Pair(bitmap, fullRect)
         }
 
         Log.d(
@@ -309,16 +314,17 @@ class WallpaperDepthService : Service() {
                 "(display ${dstW}x${dstH})",
         )
         return try {
-            Bitmap.createBitmap(
+            val cropped = Bitmap.createBitmap(
                 bitmap,
                 cropRect.left,
                 cropRect.top,
                 cropRect.width(),
                 cropRect.height(),
             )
+            Pair(cropped, cropRect)
         } catch (e: Exception) {
             Log.w(TAG, "Center-crop failed", e)
-            bitmap
+            Pair(bitmap, fullRect)
         }
     }
 
