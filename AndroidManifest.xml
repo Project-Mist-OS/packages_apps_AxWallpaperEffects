@@ -95,6 +95,21 @@
             android:name=".service.WallpaperDepthService"
             android:exported="false"
             android:directBootAware="true" />
+
+        <service
+            android:name=".service.CanvasAodService"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.android.axion.wallpapereffects.CANVAS_AOD_REGENERATE" />
+            </intent-filter>
+        </service>
+
+        <provider
+            android:name=".service.CanvasFileProvider"
+            android:authorities="com.android.axion.wallpapereffects.canvasprovider"
+            android:exported="true"
+            android:directBootAware="true" />
  
         <receiver
             android:name=".service.DepthBootReceiver"
