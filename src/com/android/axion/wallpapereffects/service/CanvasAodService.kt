@@ -103,6 +103,8 @@ class CanvasAodService : Service() {
             SETTING_CANVAS_THICKNESS,
             SETTING_CANVAS_COLOR_MODE,
             SETTING_CANVAS_CUSTOM_COLOR,
+            "canvas_aod_use_custom_image",
+            "canvas_aod_custom_image_path",
         ).forEach { key ->
             cr.registerContentObserver(
                 Settings.Secure.getUriFor(key), false, settingsObserver,
@@ -116,7 +118,7 @@ class CanvasAodService : Service() {
         super.onConfigurationChanged(newConfig)
         val dm = resources.displayMetrics
         if (dm.widthPixels != lastScreenW || dm.heightPixels != lastScreenH) {
-            Log.d(TAG, "Screen dimensions changed — rescheduling")
+            Log.d(TAG, "Screen dimensions changed  rescheduling")
             lastScreenW = dm.widthPixels
             lastScreenH = dm.heightPixels
             scheduleProcess()
@@ -170,9 +172,21 @@ class CanvasAodService : Service() {
         val customColor = Settings.Secure.getIntForUser(cr, SETTING_CANVAS_CUSTOM_COLOR, 0xFFFFFFFF.toInt(), android.os.UserHandle.USER_CURRENT)
         val style = CanvasStyle.fromId(styleId)
 
-        val wm = WallpaperManager.getInstance(this)
-        val wallpaper = loadWallpaperBitmap(wm) ?: run {
-            Log.w(TAG, "No wallpaper bitmap available")
+        val useCustomImage = Settings.Secure.getIntForUser(cr, "canvas_aod_use_custom_image", 0, android.os.UserHandle.USER_CURRENT) == 1
+        val wallpaper: Bitmap? = if (useCustomImage) {
+            val customPath = Settings.Secure.getStringForUser(cr, "canvas_aod_custom_image_path", android.os.UserHandle.USER_CURRENT)
+            if (!customPath.isNullOrEmpty() && java.io.File(customPath).exists()) {
+                android.graphics.BitmapFactory.decodeFile(customPath)
+            } else {
+                null
+            }
+        } else {
+            val wm = android.app.WallpaperManager.getInstance(this)
+            loadWallpaperBitmap(wm)
+        }
+        
+        if (wallpaper == null) {
+            Log.w(TAG, "No wallpaper/custom image bitmap available")
             clearCanvasSettings()
             return
         }
