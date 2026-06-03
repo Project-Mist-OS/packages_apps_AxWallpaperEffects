@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2025-2026 AxionOS
+ *               2025-2026 MistOS
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +28,9 @@ class DepthBootReceiver : BroadcastReceiver() {
             intent.action == Intent.ACTION_BOOT_COMPLETED ||
                 intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED
         ) {
-            Log.d("DepthBootReceiver", "Boot complete, starting WallpaperDepthService")
+            Log.d("DepthBootReceiver", "Boot complete, starting WallpaperDepthService + CanvasAodService")
             context.startService(Intent(context, WallpaperDepthService::class.java))
+            context.startService(Intent(context, CanvasAodService::class.java))
         }
     }
 }
