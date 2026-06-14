@@ -44,7 +44,8 @@ enum class CanvasStyle(val id: Int, val displayName: String) {
     ANIME_OUTLINE(2, "Anime Outline"),
     CYBERPUNK_NEON(3, "Cyberpunk Neon"),
     LOW_POLY(4, "Low Poly"),
-    BLUEPRINT(5, "Blueprint Style");
+    BLUEPRINT(5, "Blueprint Style"),
+    MATRIX_DOT(6, "Matrix Dot");
 
     companion object {
         fun fromId(id: Int): CanvasStyle = values().firstOrNull { it.id == id } ?: PENCIL_SKETCH
@@ -87,6 +88,7 @@ object CanvasStyleRenderer {
                 CanvasStyle.CYBERPUNK_NEON -> CyberpunkNeonProcessor
                 CanvasStyle.LOW_POLY       -> LowPolyProcessor
                 CanvasStyle.BLUEPRINT      -> BlueprintProcessor
+                CanvasStyle.MATRIX_DOT     -> MatrixDotProcessor
             }
             processor.process(foreground, strokePx, outlineColor)
         } catch (e: Exception) {
@@ -600,3 +602,39 @@ internal object BlueprintProcessor : StyleProcessor {
     }
 }
 
+internal object MatrixDotProcessor : StyleProcessor {
+    override fun process(foreground: Bitmap, strokePx: Float, outlineColor: Int): Bitmap {
+        val w = foreground.width
+        val h = foreground.height
+        val outBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(outBmp)        
+        val gridSize = max(8, (strokePx * 4).toInt())
+        val maxRadius = gridSize / 2f * 0.95f        
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = outlineColor
+            style = Paint.Style.FILL
+        }
+
+        val lumArray = EdgeUtils.extractLuminance(foreground, alphaThreshold = 20)        
+        for (y in 0 until h step gridSize) {
+            for (x in 0 until w step gridSize) {
+                var sumLum = 0
+                var count = 0
+                for (by in y until min(y + gridSize, h)) {
+                    for (bx in x until min(x + gridSize, w)) {
+                        sumLum += lumArray[by * w + bx]
+                        count++
+                    }
+                }
+                val avgLum = if (count > 0) sumLum / count else 0
+                                if (avgLum > 10) {
+                    val radius = maxRadius * (avgLum / 255f)
+                    val cx = x + gridSize / 2f
+                    val cy = y + gridSize / 2f
+                    canvas.drawCircle(cx, cy, radius, paint)
+                }
+            }
+        }       
+        return outBmp
+    }
+}
